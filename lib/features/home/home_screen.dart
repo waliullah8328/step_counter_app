@@ -285,12 +285,270 @@ class _HomeScreenState extends State<HomeScreen> {
 
   }
 
+  void showGoalDialog(){
+    showDialog(context: context, builder: (context){
+      final controller = TextEditingController(text: _dailyGoal.toString());
+      return AlertDialog(
+        title: Text("Set daily goal"),
+        content: TextFormField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            labelText: "Daily step goals"
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: (){
+            Navigator.pop(context);
+            
+      }, child: Text("Cancel")),
+          ElevatedButton(onPressed: () async {
+
+            final newGoal = int.tryParse( controller.text)??1000;
+            setState(() {
+              _dailyGoal = newGoal;
+            });
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setInt("dailyGoal", newGoal);
+            Navigator.pop(context);
+
+          }, child: Text("Set Goal"))
+        ],
+      );
+    });
+  }
+
 
 
   @override
   Widget build(BuildContext context) {
+
+    final progress = _dailyGoal>0? _steps/_dailyGoal:0.0;
     return Scaffold(
+      appBar: AppBar(
+        title: Text("Step Counter"),
+        centerTitle: true,
+        actions: _isPermissionGranted?[
+          IconButton(onPressed: (){
+            showGoalDialog();
+
+          }, icon: Icon(Icons.settings))
+        ]:[],
+      ),
+      body: _isLoading?Center(child: CircularProgressIndicator(
+        valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+
+      ),):!_isPermissionGranted? Center(child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.directions_walk,size: 100,color: Colors.blue[300],),
+          SizedBox(height: 30,),
+          Text("Permission Required",style: TextStyle(fontSize: 24,fontWeight: FontWeight.bold),),
+          Padding(padding: EdgeInsets.symmetric(horizontal: 20),
+          child: Text("Please grant activity recognization permission to use the step",textAlign: TextAlign.center,style: TextStyle(fontSize: 15),),),
+          SizedBox(height: 40,),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white
+            ),
+              onPressed: _checkPermission, child: Text("Grant Permission")),
+          SizedBox(height: 20,),
+          TextButton(onPressed: () async {
+            await openAppSettings();
+          }, child: Text("Open Settings"))
+
+
+        ],
+      ),):SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            children: [
+              Container(
+                padding: EdgeInsets.all(50),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [
+                    Colors.blue[400]!,
+                    Colors.blue[600]!,
+                  ]),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.blue.withValues(alpha: 0.2),
+                      blurRadius: 10,
+                      offset: Offset(0, 5)
+                    )
+                  ]
+                ),
+                child: Column(
+                  children: [
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        SizedBox(height:200,width: 200,
+                        child: CircularProgressIndicator(
+                          value: progress.clamp(0.0, 1.0),
+                          strokeWidth: 12,
+                          backgroundColor: Colors.white.withValues(alpha: 0.3),
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),),
+                        Column(mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(_isWalking?Icons.directions_walk:Icons.accessibility_new,color: Colors.white,size: 50,),
+                            SizedBox(height: 10,),
+                            Text(_steps.toString(),style: TextStyle(fontSize: 48,fontWeight: FontWeight.bold,color: Colors.white),),
+                            Text("of $_dailyGoal Steps",style: TextStyle(fontSize: 14,fontWeight: FontWeight.bold,color: Colors.white.withValues(alpha: 0.8)),),
+
+                          ],
+                        ),
+
+
+                    ],),
+                    SizedBox(height: 20,),
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 20
+                      ),
+                      decoration: BoxDecoration(
+                        color: _status == "walking"? Colors.green:Colors.white.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(_status == "walking"?"Walking":"Stopped",style: TextStyle(fontSize: 18,fontWeight: FontWeight.bold,color: Colors.white),),
+                    ),
+
+                  ],
+                ),
+              ),
+              SizedBox(height: 30,),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buttonCard(
+                    icon:Icons.local_fire_department,
+                    value: _calories.toStringAsFixed(1),
+                    unit:"cal",
+                    color:Colors.orange,
+                  ),
+                  _buttonCard(
+                    icon:Icons.straighten,
+                    value: _distance.toStringAsFixed(1),
+                    unit:"km",
+                    color:Colors.purple,
+                  ),
+                  _buttonCard(
+                    icon:Icons.timer,
+                    value: (_steps * 0.008).toStringAsFixed(0),
+                    unit:"min",
+                    color:Colors.teal,
+                  ),
+
+
+
+                ],
+              ),
+              SizedBox(height: 30,),
+              Container(
+                padding: EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(15),
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.grey.withValues(alpha: 0.1),
+                          blurRadius: 10,
+                          offset: Offset(0, 5)
+                      )
+                    ]
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Weekly Activity",style: TextStyle(fontSize: 18,fontWeight: FontWeight.bold),),
+                    SizedBox(height: 20,),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: _weeklyData.map((data){
+                        final height = (data['steps']/ _dailyGoal * 100)
+                            .clamp(10.0,100.0);
+
+                        final isToday = DateFormat("yyyy-MM-dd").format(data['date']) == DateFormat("yyyy-MM-dd").format(DateTime.now());
+                        return Column(
+                          children: [
+                            Container(
+                              width: 35,
+                              height: height.toDouble(),
+                              decoration: BoxDecoration(
+                                  gradient: isToday?LinearGradient(colors: [
+                                    Colors.blue[400]!,
+                                    Colors.blue[600]!
+                                  ]):null,
+                                  color: !isToday?Colors.grey[300]:null,
+                                  borderRadius: BorderRadius.circular(5)
+                              ),
+
+                            ),
+                            SizedBox(height: 5,),
+                            Text(data['day'],style: TextStyle(fontSize: 12,fontWeight: isToday?FontWeight.bold:null),),
+                            SizedBox(height: 5,),
+                            Text("${data['steps']} steps")
+
+
+
+                          ],
+                        );
+                      }).toList(),
+                    ),
+
+
+
+
+                  ],
+                ),
+              )
+
+            ],
+          ),
+        ),
+      ),
 
     );
+  }
+
+  Widget _buttonCard({
+  required IconData icon,
+  required String value,
+  required String unit,
+  required Color color,
+  }){
+    return Container(
+      padding: EdgeInsets.all(15),
+      width: MediaQuery.of(context).size.width * 0.25,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green.withValues(alpha: 0.1),
+             blurRadius: 5,
+            spreadRadius: 1,
+
+          )
+        ]
+      ),
+      child: Column(
+        children: [
+          Icon(icon,color: color,size: 30,),
+          SizedBox(height: 10,),
+          Text(value,style: TextStyle(fontSize: 18,fontWeight: FontWeight.bold),),
+          Text(unit,style: TextStyle(fontSize: 12,color: Colors.grey[300]),),
+
+        ],
+      ),
+    );
+
   }
 }
