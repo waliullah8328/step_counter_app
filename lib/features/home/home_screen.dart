@@ -475,6 +475,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         final height = (data['steps']/ _dailyGoal * 100)
                             .clamp(10.0,100.0);
 
+                        final percent = data['steps']/_dailyGoal;
+
                         final isToday = DateFormat("yyyy-MM-dd").format(data['date']) == DateFormat("yyyy-MM-dd").format(DateTime.now());
                         return Column(
                           children: [
@@ -493,8 +495,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             SizedBox(height: 5,),
                             Text(data['day'],style: TextStyle(fontSize: 12,fontWeight: isToday?FontWeight.bold:null),),
-                            SizedBox(height: 5,),
-                            Text("${data['steps']} steps")
+                            SizedBox(height: 10,),
+                            Text(percent >= 1.0?"Done":"$percent %",style: TextStyle(fontSize: 10),)
 
 
 
